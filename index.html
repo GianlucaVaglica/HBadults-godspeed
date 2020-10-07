@@ -86,13 +86,25 @@ let data = {
     function ratio(min, max, percent) {
         let w = [min, width*percent, max]
         w = w.sort((a,b)=>a-b)
-        console.log(w)
         return Math.round(w[1])
-
     }
 
+    function breakLines(s) {
+        
+        if(s.indexOf(' ') >= 0) {
+            return s.replace(' ', "\n")
+        } else {
+            return s
+        }
+    }
 
-
+function wrap(text) {
+text.each(function() {
+var text = d3.select(this)
+console.log(text.text())
+text = breakLines(text)
+});
+}
     /**
     * from json to array
     */
@@ -105,7 +117,6 @@ let data = {
 
     function changeXLabels() {
       let test = document.getElementsByClassName('myXaxis')[0].getElementsByClassName('tick')
-      console.log(test)
       let newTicks = JsonToArray(data.data)
       for (let i = 0; i < test.length; i++) {
         if(i>0 && i<4){
@@ -180,6 +191,7 @@ let data = {
          return arr[i]
        }))
       .attr("opacity", 1)
+
   }
 
 
@@ -249,9 +261,8 @@ let data = {
   function drawChart() {
     stroke_width = ratio(strokeWidth.min, strokeWidth.max, 0.005)
     radius = ratio(1,10,0.01)
-    fontSize = ratio(8,20,0.01)
+    fontSize = ratio(5,20,0.01)
 
-    console.log(stroke_width,fontSize,radius)
 
     checkRemoveCreateSvg()
 			w = bounds.width - margin.left - margin.right;
