@@ -1,0 +1,287 @@
+<!--	HBadults-gospeed  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+</head>
+<style>
+circle {
+    cursor: pointer;
+}
+text {
+    font-family: sans-serif;
+    font-size: 12px;
+    fill: black;
+}
+#tooltip {
+    position: absolute;
+    width: 200px;
+    height: auto;
+    padding: 10px;
+    background-color: white;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    border-radius: 10px;
+    -webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+    -mox-box-shadow: 4px 4px 4px 10px rgba(0, 0, 0, 0.4);
+    box-shadow: 4px 4px 10px rbga(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+#tooltip.hidden {
+    opacity: 0;
+}
+#tooltip p {
+    margin: 0;
+    font-family: sans-serif;
+    font-size: 16px;
+    line-height: 20px;
+}
+
+</style>
+<body>
+    <div id="divtest" style="height:100vh; width:100vw"></div>
+    <div id="tooltip" class="hidden">
+      <p id="heading"><strong></strong></p>
+      <p id="value"></p>
+  </div>
+
+		<script src="https://d3js.org/d3.v5.min.js"></script>
+	<script>
+
+let cParent
+var maincolor = 'rgba(209, 42, 92, 1)'
+var secondcolor = 'rgba(187, 47, 88, 1)'
+var t = 750;
+var radius, stroke_width, fontSize
+let strokeWidth = {min: 1, max: 5}
+let container = document.getElementById('divtest');
+let svg, g;
+let bounds, width, height, w, h, x, y
+const margin = {top: 40, right: 40, bottom: 40, left: 40}
+let status = false //false=close true=open
+let path = null
+let interval
+let tooltip = d3.select("#tooltip");
+
+let datum =[]; 
+let data = {
+    "data" : [
+    {"label": "anthropomorfism", "freq": 3.5},
+    {"label": "animacy", "freq": 3.6},
+    {"label": "likeability", "freq": 4.1},
+    {"label": "perceived intelligence", "freq": 4.1},
+    {"label": "perceived safety", "freq": 3.4},
+    ]
+};
+
+
+
+		/********************
+		* UTILS FUNCTIONS
+		*********************/
+    function ratio(min, max, percent) {
+        let w = [min, width*percent, max]
+        w = w.sort((a,b)=>a-b)
+        console.log(w)
+        return Math.round(w[1])
+
+    }
+
+
+
+    /**
+    * from json to array
+    */
+    function JsonToArray(data) {
+        newArr = data.map(d => d.label)
+        newArr.push('')
+        newArr.unshift('')
+        return newArr
+    }
+
+    function changeXLabels() {
+      let test = document.getElementsByClassName('myXaxis')[0].getElementsByClassName('tick')
+      console.log(test)
+      let newTicks = JsonToArray(data.data)
+      for (let i = 0; i < test.length; i++) {
+        if(i>0 && i<4){
+            test[i].lastChild.innerHTML = newTicks[i-1]
+        }else{
+            test[i].lastChild.innerHTML = ''
+        }
+      }
+    }
+
+    function tooltips(status, d, i) {
+      if(status>0) {
+        tooltip
+          .style("left", d3.event.pageX + "px")
+          .style("top", d3.event.pageY + "px")
+          .style("opacity", 1)
+          .select("#heading")
+          .text( d.freq + ` is the ${d.label}'s rated value` )
+        }else{
+
+        // Hide the tooltip
+        tooltip.style("opacity", 0);
+      }
+    }
+
+		/**
+		* check if there is a parent node testGV and get its height and width
+		*/
+		function findCpanel() {
+			cParent = document.getElementsByClassName('testGV')[0]
+			if(cParent != undefined || cParent != null) {
+				let boundingClient = cPanel.getBoundingClientRect()
+				d3.select('#divtest').style('height', boundingClient.height)
+			}else{
+				console.log('nessun cPanel')
+			}
+		}
+
+		function checkRemoveCreateSvg() {
+			let svg = d3.select('svg')
+			if(svg){
+				svg.remove();
+			}
+			getSvg()
+		}
+
+
+		function getSvg() {
+			bounds = container.getBoundingClientRect();
+			width = Math.round(bounds.width)
+			height = Math.round(bounds.height)
+			svg = d3.select("#divtest")
+						.append("svg")
+						.attr('id', 'svg')
+						.style('width', width).style('height', height);
+			g = svg.append("g").attr('id', 'svg-group')
+						.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+		}
+
+  function drawXaxis(height, width) {
+    // Add X axis
+    x = d3.scaleLinear()
+      .domain([0, data.data.length+1])
+      .range([0, w-margin.left]);
+    g.append("g")
+      .attr("class", "myXaxis")   // Note that here we give a class to the X axis, to be able to call it later and modify it
+      .style('fontSize', fontSize)
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x).ticks(data.data.length+1)
+       .tickFormat(function(d,i) {
+         let arr = JsonToArray(data.data)
+         return arr[i]
+       }))
+      .attr("opacity", 1)
+  }
+
+
+  function drawYaxis(height, width) {
+    // Add Y axis
+    y = d3.scaleLinear()
+        .domain([0, Math.ceil(d3.max(datum))])
+        .range([h, 0]);
+    g.append("g")
+      .call(d3.axisLeft(y).ticks(5));
+  }
+
+
+  function drawDots() {
+    // Add dots
+   let dots = g.append('g')
+      .selectAll("dot")
+      .data(data.data)
+      .enter()
+      .append("circle")
+        .attr("id", function (d,i) {return 'circle-'+ i} )
+        .attr("cx", function (d,i) { return x(i+1); } )
+        .attr("cy", function (d) { return y(d.freq); } )
+        .attr("r", radius)
+        .style("fill", maincolor)
+        .attr("opacity", 1)
+        .on('mouseover', function(d,i) {
+          d3.select('#circle-'+i).transition().duration(t).attr('r', radius*1.5)
+          tooltips(1, d, i)
+        })
+        .on('mouseleave', function(d,i) {
+          d3.select('#circle-'+i).transition().duration(t).attr('r', radius)
+          tooltips(0, d, i)
+        })
+  }
+
+
+  function drawPaths() {
+  // Add the line
+  path = g.append("path")
+            .datum(data.data)
+            .attr('class', 'paths')
+            .attr("fill", "none")
+            .attr("stroke", maincolor)
+            .attr("stroke-width", stroke_width)
+            .attr("d", d3.line()
+                .x(function(d,i) { return x(i+1) })
+                .y(function(d) { return y(d.freq) })
+            )
+            .attr('opacity', 1)
+  }
+
+  function drawArea () {
+  // Add the area
+  g.append("path")
+        .datum(data.data)
+        .attr("fill", 'rgba(209, 42, 92, 0.6)')
+        .attr("fill-opacity", .3)
+        .attr("stroke", "none")
+        .attr("d", d3.area()
+          .x(function(d,i) { return x(i+1) })
+          .y0(function(d) { return y(0) })
+          .y1(function(d) { return y(d.freq) })
+          )
+  }
+
+  function drawChart() {
+    stroke_width = ratio(strokeWidth.min, strokeWidth.max, 0.005)
+    radius = ratio(1,10,0.01)
+    fontSize = ratio(8,20,0.01)
+
+    console.log(stroke_width,fontSize,radius)
+
+    checkRemoveCreateSvg()
+			w = bounds.width - margin.left - margin.right;
+			h = bounds.height - margin.top - margin.bottom;
+			let g = d3.select('#svg-group')
+
+    drawYaxis(h,w)
+    drawXaxis(h,w)
+    drawPaths()
+    drawDots()
+    drawArea()
+
+  
+  }
+
+
+  function init() {
+     data.data.forEach((d)=>datum.push(d.freq))
+    findCpanel()
+    checkRemoveCreateSvg()
+    drawChart()
+
+    window.addEventListener("resize", () => {
+      checkRemoveCreateSvg()
+      drawChart()
+    })
+  }
+
+  init()
+
+</script>
+</body>
+</html>
